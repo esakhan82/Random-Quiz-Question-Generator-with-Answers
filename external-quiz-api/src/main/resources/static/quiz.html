@@ -1,0 +1,158 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Online Quiz</title>
+  <style>
+    body {
+      font-family: 'Segoe UI', sans-serif;
+      background: linear-gradient(135deg, #e0eafc, #cfdef3);
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      height: 100vh;
+      margin: 0;
+    }
+
+    .quiz-container {
+      background: white;
+      border-radius: 12px;
+      box-shadow: 0 10px 25px rgba(0,0,0,0.1);
+      width: 90%;
+      max-width: 500px;
+      padding: 30px 40px;
+      text-align: center;
+    }
+
+    h2 {
+      color: #333;
+      font-size: 22px;
+      margin-bottom: 25px;
+    }
+
+    .option {
+      display: block;
+      text-align: left;
+      margin: 10px 0;
+      padding: 10px;
+      background-color: #f5f5f5;
+      border-radius: 6px;
+      cursor: pointer;
+      transition: background 0.2s ease;
+    }
+
+    .option:hover {
+      background-color: #e1eaff;
+    }
+
+    input[type="radio"] {
+      margin-right: 10px;
+      transform: scale(1.2);
+    }
+
+    button {
+      margin-top: 20px;
+      background-color: #007BFF;
+      color: white;
+      border: none;
+      padding: 12px 20px;
+      border-radius: 8px;
+      font-size: 16px;
+      cursor: pointer;
+      transition: background 0.3s ease;
+    }
+
+    button:hover {
+      background-color: #0056b3;
+    }
+
+    .result {
+      margin-top: 20px;
+      font-weight: bold;
+      font-size: 18px;
+    }
+
+    .correct {
+      color: green;
+    }
+
+    .wrong {
+      color: red;
+    }
+  </style>
+</head>
+<body>
+  <div class="quiz-container">
+    <h2 id="question">Loading question...</h2>
+    <form id="quiz-form">
+      <div id="options"></div>
+      <button type="submit" id="submit-btn">Submit Answer</button>
+    </form>
+    <div id="result" class="result"></div>
+  </div>
+
+  <script>
+    let questionId = null;
+
+    function loadQuestion() {
+      document.getElementById('result').innerHTML = '';
+      document.getElementById('result').className = 'result';
+      document.getElementById('submit-btn').disabled = false;
+
+      fetch('/api/external-quiz/quiz?count=1')
+        .then(res => res.json())
+        .then(data => {
+          const question = data[0];
+          questionId = question.questionId;
+          document.getElementById('question').innerHTML = question.question;
+
+          const optionsDiv = document.getElementById('options');
+          optionsDiv.innerHTML = '';
+          question.options.forEach(option => {
+            const label = document.createElement('label');
+            label.className = 'option';
+            label.innerHTML = `
+              <input type="radio" name="option" value="${option}" />
+              ${option}
+            `;
+            optionsDiv.appendChild(label);
+          });
+        });
+    }
+
+    // Initial load
+    loadQuestion();
+
+    // Submit answer
+    document.getElementById('quiz-form').addEventListener('submit', function (e) {
+      e.preventDefault();
+      const selected = document.querySelector('input[name="option"]:checked');
+      if (!selected) {
+        alert('Please select an answer!');
+        return;
+      }
+
+      fetch('/api/external-quiz/submit', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          questionId: questionId,
+          selectedAnswer: selected.value
+        })
+      })
+      .then(res => res.json())
+      .then(data => {
+        const resultDiv = document.getElementById('result');
+        resultDiv.innerHTML = data.message;
+        resultDiv.className = 'result ' + (data.correct ? 'correct' : 'wrong');
+        document.getElementById('submit-btn').disabled = true;
+
+        // Automatically load next question after a short delay
+        setTimeout(() => {
+          loadQuestion();
+        }, 1500); // 1.5 second delay to let user see the result
+      });
+    });
+  </script>
+</body>
+</html>
